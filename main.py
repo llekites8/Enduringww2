@@ -1,3 +1,6 @@
+hide_debug_information()
+set_website_title("Enduring WW2")
+set_website_framed(False)
 from drafter import *
 from dataclasses import dataclass
 import random
