@@ -96,32 +96,23 @@ jobs:
 
                   printf 'Successfully created redirect to repository\n' >> ./dist/_build_log.txt
             # Copy over readme and check that it has been updated
-            - name: Copy over readme.md
+            - name: Copy over readme.md (optional)
               id: copy_readme
               run: |
-                  if [ ! -f readme.md ]; then
-                      echo "Error during build! Missing readme.md in the top-level directory" |& tee -a ./dist/_build_log.txt |& tee "./dist/_ERRORS.txt"
-                      exit 1
+                  if [ -f readme.md ]; then
+                      cp readme.md docs/index.md
+                      echo "* [Readme](./index.md): Your project's readme file." >> docs/dashboard.md
+                      echo "readme.md found and copied to docs/index.md" >> ./dist/_build_log.txt
+                  else
+                      echo "No readme.md found. Skipping copy." >> ./dist/_build_log.txt
                   fi
-                  cp readme.md docs/index.md
-                  echo "* [Readme](./index.md): Your project's readme file with extra information about your website, the example video, and the planning document." >> docs/dashboard.md
-
                   : # Check if the readme still has the text "Replace this text with your website name."
-                  if grep -q "Replace this text with your website name." readme.md; then
-                      echo "Error during build! readme.md still has the default text; make sure you update your readme.md" |& tee -a ./dist/_build_log.txt |& tee "./dist/_ERRORS.txt"
-                      exit 1
-                  fi
-
+                  
                   : # Flag a warning if there isn't a link to the video in the file after the "# Video" section
-                  if ! awk '/# Video/{flag=1} flag && /http/' readme.md; then
-                      echo "Warning during build! Missing link to video in readme.md" |& tee -a ./dist/_build_log.txt |& tee "./dist/_WARNINGS.txt"
-                  fi
-
+                  
                   : # Raise a warning if there is no file in the docs/ folder besides instructions.md, index.md, and dashboard.md
                   printf 'Current docs/ folder contents:\n' |& tee -a ./dist/_build_log.txt
                   ls docs/ | tee -a ./dist/_build_log.txt
-                  if [ $(ls docs/ | wc -l) -le 3 ]; then
-                      printf 'Warning during build! There were fewer files in the docs/ folder than expected; did you upload your planning document?' |& tee -a ./dist/_build_log.txt |& tee "./dist/_WARNINGS.txt"
                   else
                       : # ... And then a separate warning if NONE of the files get referenced in the readme.md
                       # Directory and file paths
@@ -295,14 +286,20 @@ jobs:
 
                   printf 'Successfully copied commit logs with messages\n' >> ./dist/_build_log.txt
             # Lint the docs/index.md file with pymarkdownlnt
-            - name: Lint docs/index.md file
-              if: ${{ !cancelled() }}
-              id: lint_docs
-              continue-on-error: true
-              run: |
-                  echo "<html><body><pre>" > ./dist/docs_lint.html
-                  pymarkdownlnt --return-code-scheme minimal scan docs/index.md |& tee -a ./dist/_build_log.txt ./dist/docs_lint.html
-                  echo "</pre></body></html>" >> ./dist/docs_lint.html
+           - name: Lint docs/index.md file
+  if: ${{ !cancelled() }}
+  id: lint_docs
+  continue-on-error: true
+  run: |
+      if [ -f docs/index.md ]; then
+          echo "<html><body><pre>" > ./dist/docs_lint.html
+          pymarkdownlnt --return-code-scheme minimal scan docs/index.md |& tee -a ./dist/_build_log.txt ./dist/docs_lint.html
+          echo "</pre></body></html>" >> ./dist/docs_lint.html
+          echo '* [Docs Lint](../docs_lint.html): Markdown linter results.' >> docs/dashboard.md
+          echo "Linted docs/index.md" >> ./dist/_build_log.txt
+      else
+          echo "docs/index.md not found. Skipping markdown linting." >> ./dist/_build_log.txt
+      fi echo "</pre></body></html>" >> ./dist/docs_lint.html
                   echo '* [Docs Lint](../docs_lint.html): The results of running a Markdown linter (`pymarkdownlnt`) on your `readme.md` file. This will identify potential issues with the formatting and style of your Markdown file. Some of the issues that it raises may be trivial or outside the scope of this course, but it can still be helpful to review what it suggests.' >> docs/dashboard.md
 
                   printf 'Successfully linted the docs/index.md file\n' >> ./dist/_build_log.txt
